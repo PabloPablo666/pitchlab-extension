@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "PitchLab Extension",
+  "version": "1.0.0",
+  "description": "PitchLab panel + audio pitch controller for Discogs, Bandcamp and YouTube.",
+
+  "action": {
+    "default_title": "PitchLab"
+  },
+
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.discogs.com/*",
+        "*://*.bandcamp.com/*",
+        "*://*.youtube.com/*"
+      ],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ]
+}
