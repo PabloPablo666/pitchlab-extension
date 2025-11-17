@@ -1,0 +1,9 @@
+# Build del pannello UI
+chrome-ext/ui-panel/assets/
+
+# Build di Vite React
+ui/dist/
+
+# Node modules
+ui/node_modules/
+node_modules/
