@@ -5,7 +5,7 @@
   "description": "PitchLab panel + audio pitch controller for Discogs, Bandcamp and YouTube.",
 
   "action": {
-    "default_title": "PitchLab"
+    "default_title": "Open PitchLab panel"
   },
 
   "background": {
@@ -28,6 +28,13 @@
   "permissions": [
     "activeTab",
     "scripting",
-    "storage"
+    "storage",
+    "tabs"
+  ],
+
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "*://*.discogs.com/*",
+    "*://*.bandcamp.com/*"
   ]
 }

@@ -1,109 +1,116 @@
-// PitchLab content script
-
 console.log('[PitchLab] content script loaded');
 
-function findMediaElement() {
-  // 1) prova con <video> (YouTube / embedded)
-  let media = document.querySelector('video');
+// stato interno
+let currentRate = 1.0;
+let mediaElement = null;
 
-  // 2) se non c'è, prova <audio> (Bandcamp ecc.)
-  if (!media) {
-    media = document.querySelector('audio');
+// -----------------------------------------
+// Trova in loop finché non appare un media
+// -----------------------------------------
+function findMediaLoop() {
+  if (mediaElement && !mediaElement.paused) return;  
+
+  const video = document.querySelector('video');
+  const audio = document.querySelector('audio');
+
+  mediaElement = video || audio;
+
+  if (mediaElement) {
+    console.log('[PitchLab] Media found:', mediaElement.tagName);
+    applyRate();
+  } else {
+    console.log('[PitchLab] Retrying media search...');
+    setTimeout(findMediaLoop, 500);
   }
+}
+findMediaLoop();
 
-  return media;
+// -----------------------------------------
+function applyRate() {
+  if (!mediaElement) return;
+  mediaElement.playbackRate = currentRate;
+  console.log('[PitchLab] playbackRate =', currentRate);
 }
 
-function createPitchWidget() {
-  // evita duplicati
-  if (document.getElementById('pitchlab-floating-widget')) return;
+// -----------------------------------------
+// Aggiorna rate dal pannello
+// -----------------------------------------
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (!msg || typeof msg !== 'object') return;
 
-  const container = document.createElement('div');
-  container.id = 'pitchlab-floating-widget';
-  container.style.position = 'fixed';
-  container.style.bottom = '16px';
-  container.style.right = '16px';
-  container.style.zIndex = '999999';
-  container.style.background = 'rgba(0,0,0,0.85)';
-  container.style.color = '#fff';
-  container.style.fontFamily = 'system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
-  container.style.fontSize = '12px';
-  container.style.padding = '6px 10px';
-  container.style.borderRadius = '4px';
-  container.style.display = 'flex';
-  container.style.alignItems = 'center';
-  container.style.gap = '6px';
-  container.style.boxShadow = '0 2px 8px rgba(0,0,0,0.5)';
+  switch (msg.type) {
 
-  const label = document.createElement('span');
-  label.textContent = 'PitchLab: rate';
-
-  const minusBtn = document.createElement('button');
-  minusBtn.textContent = '−';
-  minusBtn.style.minWidth = '20px';
-
-  const plusBtn = document.createElement('button');
-  plusBtn.textContent = '+';
-  plusBtn.style.minWidth = '20px';
-
-  const valueSpan = document.createElement('span');
-  valueSpan.textContent = '1.00';
-
-  const multiplierSpan = document.createElement('span');
-  multiplierSpan.textContent = '1.00x';
-
-  [minusBtn, plusBtn].forEach(btn => {
-    btn.style.border = '1px solid #555';
-    btn.style.background = '#222';
-    btn.style.color = '#fff';
-    btn.style.cursor = 'pointer';
-    btn.style.borderRadius = '3px';
-    btn.style.padding = '0 4px';
-  });
-
-  container.appendChild(label);
-  container.appendChild(minusBtn);
-  container.appendChild(valueSpan);
-  container.appendChild(plusBtn);
-  container.appendChild(multiplierSpan);
-
-  document.body.appendChild(container);
-
-  let currentRate = 1.0;
-
-  function applyRate() {
-    const media = findMediaElement();
-    if (!media) {
-      console.warn('[PitchLab] No media element found on this page');
-      return;
+    case 'PITCHLAB_SET_RATE': {
+      currentRate = msg.rate;
+      applyRate();
+      sendResponse?.({ ok: true, rate: currentRate });
+      return true;
     }
 
-    media.playbackRate = currentRate;
-    valueSpan.textContent = currentRate.toFixed(2);
-    multiplierSpan.textContent = currentRate.toFixed(2) + 'x';
-    console.log('[PitchLab] set playbackRate =', currentRate);
+    case 'PITCHLAB_NUDGE_RATE': {
+      currentRate += msg.delta;
+      applyRate();
+      sendResponse?.({ ok: true, rate: currentRate });
+      return true;
+    }
+
+    default:
+      return;
   }
+});
 
-  minusBtn.addEventListener('click', () => {
-    currentRate = Math.max(0.50, currentRate - 0.01); // passi di 1%
+// -----------------------------------------
+// Mini widget (rimane identico)
+// -----------------------------------------
+function createPitchWidget() {
+  if (document.getElementById('pitchlab-floating-widget')) return;
+
+  const box = document.createElement('div');
+  box.id = 'pitchlab-floating-widget';
+  box.style.position = 'fixed';
+  box.style.bottom = '16px';
+  box.style.right = '16px';
+  box.style.zIndex = '999999';
+  box.style.padding = '6px 10px';
+  box.style.background = 'rgba(0,0,0,0.85)';
+  box.style.color = '#fff';
+  box.style.borderRadius = '4px';
+  box.style.fontFamily = 'system-ui';
+  box.style.display = 'flex';
+  box.style.gap = '8px';
+  box.style.alignItems = 'center';
+
+  const minus = document.createElement('button');
+  minus.textContent = '−';
+  minus.onclick = () => {
+    currentRate = Math.max(0.5, currentRate - 0.01);
     applyRate();
-  });
+  };
 
-  plusBtn.addEventListener('click', () => {
-    currentRate = Math.min(1.50, currentRate + 0.01);
+  const plus = document.createElement('button');
+  plus.textContent = '+';
+  plus.onclick = () => {
+    currentRate = Math.min(1.5, currentRate + 0.01);
     applyRate();
-  });
+  };
 
-  // rate iniziale
-  applyRate();
+  const label = document.createElement('span');
+  label.id = 'pitchlab-widget-value';
+  label.textContent = currentRate.toFixed(2);
+
+  box.appendChild(minus);
+  box.appendChild(label);
+  box.appendChild(plus);
+
+  document.body.appendChild(box);
+
+  setInterval(() => {
+    label.textContent = currentRate.toFixed(2);
+  }, 100);
 }
 
-// DOM pronto → crea widget
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', () => {
-    console.log('[PitchLab] DOMContentLoaded');
-    createPitchWidget();
-  });
+  document.addEventListener('DOMContentLoaded', createPitchWidget);
 } else {
   createPitchWidget();
 }
