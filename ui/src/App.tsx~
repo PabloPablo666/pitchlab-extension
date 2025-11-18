@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 
 // Tab bersaglio: dove vive il player che vogliamo controllare
 const TARGET_URL_PATTERNS = [
@@ -6,9 +6,6 @@ const TARGET_URL_PATTERNS = [
   '*://*.discogs.com/*',
   '*://*.bandcamp.com/*',
 ];
-
-// una sola chiave globale, basta drammi
-const STORAGE_KEY = 'pitchlab-mk2-panel-state-v1';
 
 // -----------------------------
 // Helpers
@@ -47,17 +44,14 @@ function computeTapBpm(taps: number[]): number | null {
 // Messaging verso il content-script
 // -----------------------------
 
-function sendRateToActiveMediaTab(
-  rate: number,
-  onTabResolved?: (tab: any) => void
-) {
+function sendRateToActiveMediaTab(rate: number) {
   try {
     const chromeAny: any = chrome;
 
     chromeAny.tabs.query(
       { url: TARGET_URL_PATTERNS },
       (tabs: any[]) => {
-        if (!tabs || !tabs.length) {
+        if (!tabs || tabs.length === 0) {
           console.warn('[PitchLab panel] No matching media tab found');
           return;
         }
@@ -66,10 +60,6 @@ function sendRateToActiveMediaTab(
         if (!tab || !tab.id) {
           console.warn('[PitchLab panel] Matching tab has no id');
           return;
-        }
-
-        if (onTabResolved) {
-          onTabResolved(tab);
         }
 
         chromeAny.tabs.sendMessage(
@@ -109,113 +99,17 @@ export default function App() {
   const [tapBpm, setTapBpm] = useState<number | null>(null);
   const tapTimesRef = useRef<number[]>([]);
 
-  // Badge “chi sto controllando”
-  const [lastTargetLabel, setLastTargetLabel] = useState<string | null>(null);
-
   const effectiveRate = computeRate(pitch, rpmOrig, rpmPlay);
   const detent = Math.abs(pitch) < 0.05;
   const displayPitch = pitch.toFixed(2);
   const currentBpm = baseBpm != null ? baseBpm * effectiveRate : null;
-
-  // -----------------------------
-  // Helpers UI
-  // -----------------------------
-
-  function updateTargetLabelFromTab(tab: any) {
-    try {
-      const url: string | undefined = tab.url;
-      if (!url) {
-        setLastTargetLabel(null);
-        return;
-      }
-      const u = new URL(url);
-      const host = u.hostname.toLowerCase();
-
-      let label = host;
-      if (host.includes('youtube.com')) label = 'YouTube';
-      else if (host.includes('discogs.com')) label = 'Discogs';
-      else if (host.includes('bandcamp.com')) label = 'Bandcamp';
-
-      setLastTargetLabel(label);
-    } catch {
-      setLastTargetLabel(null);
-    }
-  }
-
-  // -----------------------------
-  // Carica stato da localStorage all'avvio
-  // e riallinea SUBITO il player
-  // -----------------------------
-
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-
-      const parsed = JSON.parse(raw) as {
-        pitch?: number;
-        rpmOrig?: number;
-        rpmPlay?: number;
-        baseBpm?: number | null;
-      };
-
-      let loadedPitch = pitch;
-      let loadedOrig = rpmOrig;
-      let loadedPlay = rpmPlay;
-      let loadedBaseBpm: number | null = baseBpm;
-
-      if (typeof parsed.pitch === 'number') {
-        loadedPitch = clampPitch(parsed.pitch);
-        setPitch(loadedPitch);
-      }
-
-      if (parsed.rpmOrig === 33 || parsed.rpmOrig === 45) {
-        loadedOrig = parsed.rpmOrig;
-        setRpmOrig(parsed.rpmOrig);
-      }
-
-      if (parsed.rpmPlay === 33 || parsed.rpmPlay === 45) {
-        loadedPlay = parsed.rpmPlay;
-        setRpmPlay(parsed.rpmPlay);
-      }
-
-      if (parsed.baseBpm == null || typeof parsed.baseBpm === 'number') {
-        loadedBaseBpm = parsed.baseBpm ?? null;
-        setBaseBpm(loadedBaseBpm);
-      }
-
-      const initialRate = computeRate(loadedPitch, loadedOrig, loadedPlay);
-      sendRateToActiveMediaTab(initialRate, updateTargetLabelFromTab);
-    } catch (err) {
-      console.warn('[PitchLab panel] failed to load state from localStorage', err);
-    }
-    // vogliamo farlo SOLO al mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // -----------------------------
-  // Salva stato ogni volta che cambia
-  // -----------------------------
-
-  useEffect(() => {
-    try {
-      const toStore = { pitch, rpmOrig, rpmPlay, baseBpm };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
-    } catch (err) {
-      console.warn('[PitchLab panel] failed to save state to localStorage', err);
-    }
-  }, [pitch, rpmOrig, rpmPlay, baseBpm]);
-
-  // -----------------------------
-  // Pitch / RPM logic
-  // -----------------------------
 
   function applyPitch(newPitch: number) {
     const clamped = clampPitch(newPitch);
     setPitch(clamped);
 
     const newRate = computeRate(clamped, rpmOrig, rpmPlay);
-    sendRateToActiveMediaTab(newRate, updateTargetLabelFromTab);
+    sendRateToActiveMediaTab(newRate);
   }
 
   function handleSliderChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -235,7 +129,7 @@ export default function App() {
     setRpmPlay(newPlay);
 
     const newRate = computeRate(pitch, newOrig, newPlay);
-    sendRateToActiveMediaTab(newRate, updateTargetLabelFromTab);
+    sendRateToActiveMediaTab(newRate);
   }
 
   // -----------------------------
@@ -246,6 +140,7 @@ export default function App() {
     const now = performance.now();
     tapTimesRef.current.push(now);
 
+    // tieni solo gli ultimi 6 tap
     if (tapTimesRef.current.length > 6) {
       tapTimesRef.current.shift();
     }
@@ -270,10 +165,6 @@ export default function App() {
     setBaseBpm(null);
   }
 
-  // -----------------------------
-  // UI
-  // -----------------------------
-
   return (
     <div className="min-h-screen w-full bg-neutral-950 text-neutral-100 p-4 sm:p-8">
       <div className="mx-auto max-w-5xl rounded-2xl bg-gradient-to-b from-neutral-900 to-neutral-950 shadow-2xl ring-1 ring-neutral-800 overflow-hidden">
@@ -288,15 +179,8 @@ export default function App() {
               Extension Panel
             </span>
           </div>
-
-          <div className="flex flex-col items-end gap-1 text-xs text-neutral-400">
-            <span>Targets: YouTube · Discogs · Bandcamp</span>
-            {lastTargetLabel && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-neutral-800 border border-neutral-700 text-[10px] text-neutral-200">
-                <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
-                Controlling: {lastTargetLabel}
-              </span>
-            )}
+          <div className="text-xs text-neutral-400">
+            Target: YouTube · Discogs · Bandcamp
           </div>
         </div>
 
@@ -406,13 +290,21 @@ export default function App() {
                       writingMode: 'vertical-lr',
                     }}
                   />
-                  <div className="flex items-center gap-2 text-xs text-neutral-400">
-                    <span>Quartz lock</span>
-                    <span
-                      className={`h-2 w-2 rounded-full ${
-                        detent ? 'bg-green-400' : 'bg-neutral-700'
-                      }`}
-                    />
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700 active:scale-95 text-xs"
+                      onClick={() => applyPitch(0)}
+                    >
+                      Quartz 0%
+                    </button>
+                    <div className="flex items-center gap-2 text-xs text-neutral-400">
+                      <span>Quartz</span>
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          detent ? 'bg-green-400' : 'bg-neutral-700'
+                        }`}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -444,9 +336,10 @@ export default function App() {
                   </div>
                 </div>
                 <div className="rounded-lg border border-neutral-700 bg-neutral-800/60 p-3">
-                  <div className="text-xs text-neutral-400">BPM attuale</div>
+                  <div className="text-xs text-neutral-400">Pitch offset</div>
                   <div className="text-2xl font-semibold tabular-nums">
-                    {currentBpm != null ? currentBpm.toFixed(2) : '—'}
+                    {pitch >= 0 ? '+' : ''}
+                    {displayPitch}%
                   </div>
                 </div>
               </div>
@@ -462,13 +355,13 @@ export default function App() {
                 <div className="rounded-lg border border-neutral-700 bg-neutral-800/60 p-3">
                   <div className="text-xs text-neutral-400">BPM TAP</div>
                   <div className="text-2xl font-semibold tabular-nums">
-                    {tapBpm != null ? tapBpm.toFixed(2) : '—'}
+                    {tapBpm != null ? tapBpm.toFixed(2) : '--'}
                   </div>
                 </div>
                 <div className="rounded-lg border border-neutral-700 bg-neutral-800/60 p-3">
                   <div className="text-xs text-neutral-400">BPM base</div>
                   <div className="text-2xl font-semibold tabular-nums">
-                    {baseBpm != null ? baseBpm.toFixed(2) : '—'}
+                    {baseBpm != null ? baseBpm.toFixed(2) : '--'}
                   </div>
                 </div>
               </div>
@@ -507,7 +400,7 @@ export default function App() {
               <div className="mt-3 text-xs text-neutral-400 border-t border-neutral-800 pt-2">
                 BPM attuale:{' '}
                 <span className="font-semibold text-neutral-100">
-                  {currentBpm != null ? currentBpm.toFixed(2) : '—'}
+                  {currentBpm != null ? currentBpm.toFixed(2) : '--'}
                 </span>
                 {baseBpm != null && (
                   <span className="text-neutral-500">
