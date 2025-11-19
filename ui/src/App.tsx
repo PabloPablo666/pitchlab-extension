@@ -237,6 +237,19 @@ export default function App() {
     const newRate = computeRate(pitch, newOrig, newPlay);
     sendRateToActiveMediaTab(newRate, updateTargetLabelFromTab);
   }
+  function handleFullReset() {
+    // reset stato interno
+    setPitch(0);
+    setRpmOrig(33);
+    setRpmPlay(33);
+
+    setBaseBpm(null);
+    setTapBpm(null);
+    tapTimesRef.current = [];
+
+    // rimetti il player del browser a 1.0x
+    sendRateToActiveMediaTab(1.0);
+  }
 
   // -----------------------------
   // BPM TAP HANDLERS
@@ -427,8 +440,16 @@ export default function App() {
                 </div>
               </div>
             </div>
+{/* Full deck reset */}
+<div className="mt-4 flex justify-center">
+  <button
+    onClick={handleFullReset}
+    className="px-4 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-sm font-semibold hover:bg-neutral-700 active:scale-95"
+  >
+    Reset deck
+  </button>
+</div>
           </div>
-
           {/* Colonna destra: Info + BPM + Nudge + Help */}
           <div className="grid grid-rows-[auto_auto_auto_1fr] gap-4">
             {/* Rate & info */}
