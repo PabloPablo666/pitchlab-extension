@@ -1,3 +1,43 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Slider thumb custom */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  background: #111; /* black */
+  border: 2px solid #333;
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  height: 14px;
+  width: 14px;
+  border-radius: 50%;
+  background: #111; /* black */
+  border: 2px solid #333;
+  cursor: pointer;
+}
+/* Glow verde sempre attivo */
+input[type="range"]::-webkit-slider-thumb {
+  box-shadow: 0 0 4px 1px rgba(34, 197, 94, 0.6); /* glow sempre */
+}
+
+input[type="range"]::-moz-range-thumb {
+  box-shadow: 0 0 4px 1px rgba(34, 197, 94, 0.6);
+}
+
+/* Glow maggiore quando hover + active */
+input[type="range"]::-webkit-slider-thumb:hover,
+input[type="range"]::-webkit-slider-thumb:active {
+  box-shadow: 0 0 8px 3px rgba(34, 197, 94, 0.9);
+}
+
+input[type="range"]::-moz-range-thumb:hover,
+input[type="range"]::-moz-range-thumb:active {
+  box-shadow: 0 0 8px 3px rgba(34, 197, 94, 0.9);
+}

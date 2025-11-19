@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import "./App.css";
 
 // Tab bersaglio: dove vive il player che vogliamo controllare
 const TARGET_URL_PATTERNS = [
@@ -114,6 +115,46 @@ export default function App() {
 
   const effectiveRate = computeRate(pitch, rpmOrig, rpmPlay);
   const detent = Math.abs(pitch) < 0.05;
+
+  // Track dello slider: colore solo tra 0 e il pitch attuale
+  const minPitch = -8;
+  const maxPitch = 8;
+
+  // helper: converte valore pitch -> posizione in % lungo la track, tenendo conto del flip verticale
+  function toTrackPos(value: number): number {
+    const pct = ((value - minPitch) / (maxPitch - minPitch)) * 100;
+    return 100 - pct; // flip perché lo slider verticale è ribaltato
+  }
+
+  const zeroPos = toTrackPos(0);
+  const currentPos = toTrackPos(pitch);
+
+  let sliderTrack = `linear-gradient(to top,
+    #e5e5e5 0%,
+    #e5e5e5 100%
+  )`;
+
+  if (pitch >= 0) {
+    // pitch positivo: colore dal centro verso il basso
+    sliderTrack = `linear-gradient(to top,
+      #e5e5e5 0%,
+      #e5e5e5 ${currentPos}%,
+      #22c55e ${currentPos}%,
+      #22c55e ${zeroPos}%,
+      #e5e5e5 ${zeroPos}%,
+      #e5e5e5 100%
+    )`;
+  } else {
+    // pitch negativo: colore dal centro verso l'alto
+    sliderTrack = `linear-gradient(to top,
+      #e5e5e5 0%,
+      #e5e5e5 ${zeroPos}%,
+      #22c55e ${zeroPos}%,
+      #22c55e ${currentPos}%,
+      #e5e5e5 ${currentPos}%,
+      #e5e5e5 100%
+    )`;
+  }
   const displayPitch = pitch.toFixed(2);
   const currentBpm = baseBpm != null ? baseBpm * effectiveRate : null;
 
@@ -294,8 +335,8 @@ export default function App() {
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-800">
           <div className="flex items-center gap-3">
             <div className="h-3 w-3 rounded-full bg-green-400 shadow-[0_0_12px_2px_rgba(74,222,128,0.7)]" />
-            <h1 className="text-xl sm:text-2xl font-semibold tracking-tight">
-              PitchLab MK2
+            <h1 className="text-xl font-semibold tracking-wide">
+             PitchLab MK2
             </h1>
             <span className="text-xs px-2 py-0.5 rounded bg-neutral-800/70 border border-neutral-700">
               Extension Panel
@@ -406,28 +447,33 @@ export default function App() {
 
                 {/* Slider verticale */}
                 <div className="flex flex-col items-center gap-3">
-                  <input
-                    type="range"
-                    min={-8}
-                    max={8}
-                    step={0.01}
-                    value={pitch}
-                    onChange={handleSliderChange}
-                    className="h-72 w-6 appearance-none bg-transparent"
-                    style={{
-                      WebkitAppearance: 'slider-vertical',
-                      writingMode: 'vertical-lr',
-                    }}
-                  />
-                  <div className="flex items-center gap-2 text-xs text-neutral-400">
-                    <span>Quartz lock</span>
-                    <span
-                      className={`h-2 w-2 rounded-full ${
-                        detent ? 'bg-green-400' : 'bg-neutral-700'
-                      }`}
-                    />
-                  </div>
-                </div>
+                 <input
+                  type="range"
+                  min={-8}
+                  max={8}
+                  step={0.01}
+                  value={pitch}
+                  onChange={handleSliderChange}
+                  className="h-72 w-2 bg-transparent"
+                  style={{
+                   WebkitAppearance: 'none',
+                   writingMode: 'vertical-lr',
+                   backgroundImage: sliderTrack,
+                   backgroundRepeat: 'no-repeat',
+                   backgroundSize: '100% 100%',
+                   borderRadius: '999px',
+                 }}
+                />
+
+              <div className="flex items-center gap-2 text-xs text-neutral-400">
+               <span>Quartz lock</span>
+               <span
+                className={`h-2 w-2 rounded-full ${
+                  detent ? 'bg-green-400' : 'bg-neutral-700'
+                 }`}
+                />
+              </div>
+             </div>
 
                 {/* Display numerico */}
                 <div className="ml-auto grid gap-2 text-right">
@@ -440,15 +486,16 @@ export default function App() {
                 </div>
               </div>
             </div>
-{/* Full deck reset */}
-<div className="mt-4 flex justify-center">
-  <button
-    onClick={handleFullReset}
-    className="px-4 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-sm font-semibold hover:bg-neutral-700 active:scale-95"
-  >
-    Reset deck
-  </button>
-</div>
+
+            {/* Full deck reset */}
+            <div className="mt-4 flex justify-center">
+             <button
+              onClick={handleFullReset}
+              className="px-4 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-sm font-semibold hover:bg-neutral-700 active:scale-95"
+             >
+             Full Deck Reset
+            </button>
+           </div>
           </div>
           {/* Colonna destra: Info + BPM + Nudge + Help */}
           <div className="grid grid-rows-[auto_auto_auto_1fr] gap-4">
@@ -465,7 +512,7 @@ export default function App() {
                   </div>
                 </div>
                 <div className="rounded-lg border border-neutral-700 bg-neutral-800/60 p-3">
-                  <div className="text-xs text-neutral-400">BPM attuale</div>
+                  <div className="text-xs text-neutral-400">Current BPM</div>
                   <div className="text-2xl font-semibold tabular-nums">
                     {currentBpm != null ? currentBpm.toFixed(2) : '—'}
                   </div>
@@ -476,7 +523,7 @@ export default function App() {
             {/* BPM block */}
             <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4">
               <h2 className="text-sm font-medium text-neutral-300 mb-3">
-                BPM (Tap engine)
+                BPM (Tap block)
               </h2>
 
               <div className="grid grid-cols-2 gap-3 mb-3">
@@ -511,22 +558,22 @@ export default function App() {
 
               <div className="grid grid-cols-2 gap-3">
                 <button
-                  className="px-3 py-2 rounded-lg bg-green-600/90 hover:bg-green-500 text-xs font-semibold active:scale-95 disabled:opacity-40 disabled:hover:bg-green-600/90"
+                  className="px-3 py-2 rounded-lg bg-green-700/80 hover:bg-green-600/80 text-xs font-semibold active:scale-95 disabled:opacity-40 disabled:hover:bg-green-700/80"
                   onClick={useTappedBpm}
                   disabled={tapBpm == null}
                 >
-                  Usa BPM TAP
+                  Set BPM
                 </button>
                 <button
                   className="px-3 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-xs active:scale-95"
                   onClick={resetBaseBpm}
                 >
-                  Clear BPM base
+                  Clear Base BPM
                 </button>
               </div>
 
               <div className="mt-3 text-xs text-neutral-400 border-t border-neutral-800 pt-2">
-                BPM attuale:{' '}
+                Current BPM:{' '}
                 <span className="font-semibold text-neutral-100">
                   {currentBpm != null ? currentBpm.toFixed(2) : '—'}
                 </span>
@@ -570,30 +617,32 @@ export default function App() {
             <div className="rounded-xl border border-neutral-800 bg-neutral-900/60 p-4 text-xs text-neutral-400">
               <ul className="list-disc pl-4 space-y-1">
                 <li>
-                  <span className="font-semibold text-neutral-200">Origine</span> è la
-                  velocità “stampata” del disco (33 / 45).
+                  <span className="font-semibold text-neutral-200">Origin:</span> fixed reference speed of the record (33 / 45).
                 </li>
                 <li>
-                  <span className="font-semibold text-neutral-200">Riproduzione</span> è
-                  il “piatto virtuale” che stai controllando nel browser.
+                  <span className="font-semibold text-neutral-200">Playback:</span> virtual platter speed applied to browser audio.
                 </li>
                 <li>
-                  Il pitch ±8% lavora sopra il rapporto RPM, come su un giradischi reale.
+                  <span className="font-semibold text-neutral-200">Pitch:</span> ±8% range applied on top of RPM, like a real deck.
                 </li>
                 <li>
-                  Il BPM base viene moltiplicato per il playback rate: ogni cambio di
-                  pitch / RPM aggiorna il BPM attuale.
+                  <span className="font-semibold text-neutral-200">Base BPM:</span> multiplied by playback rate to calculate Current BPM.
+                </li>
+                <li>
+                  <span className="font-semibold text-neutral-200">Full Deck Reset:</span> restores RPM, pitch, playback rate and BPM settings to default.
                 </li>
               </ul>
             </div>
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-neutral-800 text-xs text-neutral-500 flex flex-wrap items-center gap-3">
-          <span>© {new Date().getFullYear()} PitchLab</span>
-          <span className="opacity-60">•</span>
-          <span>MK2 prototype · Browser deck control</span>
-        </div>
+        <div className="px-6 py-4 border-t border-neutral-800 text-[11px] text-neutral-500 flex flex-wrap items-center gap-3 tracking-widest uppercase select-none">
+       <span>© {new Date().getFullYear()} PitchLab MK2</span>
+       <span className="opacity-40">•</span>
+       <span>Browser Deck Control</span>
+       <span className="opacity-40">•</span>
+       <span className="text-neutral-400">Paolo Olivieri</span>
+       </div>
       </div>
     </div>
   );
