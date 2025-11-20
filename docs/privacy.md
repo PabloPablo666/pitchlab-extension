@@ -36,7 +36,5 @@ Contact
 
 For questions, contact: paolo.olivieri89@gmail.com
 
-⸻
 
-Se vuoi, te la formatto anche in HTML pronto.
 
