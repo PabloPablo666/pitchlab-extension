@@ -323,11 +323,30 @@ export default function App() {
   function resetBaseBpm() {
     setBaseBpm(null);
   }
+// -----------------------------
+// Key bindings (T = TAP tempo)
+// -----------------------------
+useEffect(() => {
+  function handleKey(e: KeyboardEvent) {
+    // evita casini caso utente scriva in qualche input (in futuro)
+    const target = e.target as HTMLElement;
+    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+      return;
+    }
 
+    // T / t → TAP
+    if (e.key === 't' || e.key === 'T') {
+      e.preventDefault();
+      handleTap();
+    }
+  }
+
+  window.addEventListener('keydown', handleKey);
+  return () => window.removeEventListener('keydown', handleKey);
+}, []);
   // -----------------------------
   // UI
   // -----------------------------
-
   return (
     <div className="min-h-screen w-full bg-neutral-950 text-neutral-100 p-4 sm:p-8">
       <div className="mx-auto max-w-5xl rounded-2xl bg-gradient-to-b from-neutral-900 to-neutral-950 shadow-2xl ring-1 ring-neutral-800 overflow-hidden">
