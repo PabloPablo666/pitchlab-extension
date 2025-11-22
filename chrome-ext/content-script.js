@@ -1,14 +1,20 @@
 // PitchLab content script
-// - trova il media element nella pagina
+// - gira in TUTTI i frame (manifest all_frames: true)
+// - trova i media element nel frame corrente
 // - applica playbackRate direttamente (senza smoothing JS)
-// - espone una piccola API per il pannello
-// - mantiene il mini widget in basso a destra
+// - disabilita pitch correction (preservesPitch=false & co.)
+// - espone API per il pannello
+// - mini widget SOLO nel top frame (window === window.top)
 
-console.log('[PitchLab] content script loaded');
+console.log('[PitchLab] content script loaded in frame:', window.location.href);
 
 let currentRate = 1.0;
+const isTopFrame = (window === window.top);
 
-// Riferimenti al mini widget
+// ------------------------------
+// Mini widget refs (solo top frame)
+// ------------------------------
+
 const widget = {
   container: null,
   valueSpan: null,
@@ -18,16 +24,25 @@ const widget = {
 // Helpers
 // ------------------------------
 
-function findMediaElement() {
-  // Priorità: <video> (YouTube, embed Discogs)
-  let media = document.querySelector('video');
+function findMediaElements() {
+  const videos = Array.from(document.querySelectorAll('video'));
+  const audios = Array.from(document.querySelectorAll('audio'));
+  return [...videos, ...audios];
+}
 
-  // Fallback: <audio> (Bandcamp, player vecchi)
-  if (!media) {
-    media = document.querySelector('audio');
+// disattiva pitch correction (comportamento “vinile”)
+function configureMediaLikeDeck(media) {
+  const anyMedia = /** @type {any} */ (media);
+
+  if ('preservesPitch' in anyMedia) {
+    anyMedia.preservesPitch = false;
   }
-
-  return media || null;
+  if ('mozPreservesPitch' in anyMedia) {
+    anyMedia.mozPreservesPitch = false;
+  }
+  if ('webkitPreservesPitch' in anyMedia) {
+    anyMedia.webkitPreservesPitch = false;
+  }
 }
 
 function clampRate(rate) {
@@ -37,20 +52,26 @@ function clampRate(rate) {
   return Math.min(max, Math.max(min, rate));
 }
 
+// applica rate a tutti i media del FRAME corrente
 function applyRate() {
-  const media = findMediaElement();
-  if (!media) {
-    console.warn('[PitchLab] No media element found on this page');
+  const mediaEls = findMediaElements();
+
+  if (!mediaEls.length) {
+    // solo log nel frame che non ha media
+    console.warn('[PitchLab] No media element found in this frame:', window.location.href);
     return;
   }
 
-  media.playbackRate = currentRate;
+  mediaEls.forEach(media => {
+    configureMediaLikeDeck(media);      // disabilita pitch correction
+    media.playbackRate = currentRate;   // applica rate
+  });
 
-  if (widget.valueSpan) {
+  if (isTopFrame && widget.valueSpan) {
     widget.valueSpan.textContent = currentRate.toFixed(2);
   }
 
-  // console.log('[PitchLab] playbackRate set to', currentRate);
+  // console.log('[PitchLab] applyRate in frame', window.location.href, 'rate=', currentRate);
 }
 
 function setRateFromPanel(rate) {
@@ -72,54 +93,88 @@ function nudgeRate(delta) {
 //  - { type: 'PITCHLAB_SET_RATE', rate: number }
 //  - { type: 'PITCHLAB_NUDGE_RATE', delta: number }
 //  - { type: 'PITCHLAB_GET_STATE' }
+//
+// Il pannello manda il messaggio al TAB, e TUTTI i frame
+// che hanno questo content script lo ricevono.
+// Ogni frame:
+//  - applica il rate sui propri media
+//  - risponde SOLO se ha almeno un media element
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (!message || typeof message !== 'object') {
-    return;
-  }
+  if (!message || typeof message !== 'object') return;
 
   switch (message.type) {
     case 'PITCHLAB_SET_RATE': {
       setRateFromPanel(message.rate);
-      sendResponse?.({
-        ok: true,
-        rate: currentRate,
-      });
-      return true;
+
+      // rispondi solo se in questo frame ci sono media
+      const mediaEls = findMediaElements();
+      if (mediaEls.length > 0) {
+        sendResponse?.({
+          ok: true,
+          rate: currentRate,
+          frameUrl: window.location.href,
+          mediaCount: mediaEls.length,
+        });
+        return true;
+      }
+      return;
+
     }
 
     case 'PITCHLAB_NUDGE_RATE': {
       nudgeRate(message.delta);
-      sendResponse?.({
-        ok: true,
-        rate: currentRate,
-      });
-      return true;
+
+      const mediaEls = findMediaElements();
+      if (mediaEls.length > 0) {
+        sendResponse?.({
+          ok: true,
+          rate: currentRate,
+          frameUrl: window.location.href,
+          mediaCount: mediaEls.length,
+        });
+        return true;
+      }
+      return;
     }
 
     case 'PITCHLAB_GET_STATE': {
-      const media = findMediaElement();
-      sendResponse?.({
-        ok: true,
-        rate: currentRate,
-        hasMedia: !!media,
-        duration: media ? media.duration : null,
-        currentTime: media ? media.currentTime : null,
-      });
-      return true;
+      const mediaEls = findMediaElements();
+      const first = mediaEls[0] || null;
+
+      if (mediaEls.length > 0) {
+        sendResponse?.({
+          ok: true,
+          rate: currentRate,
+          hasMedia: true,
+          frameUrl: window.location.href,
+          mediaCount: mediaEls.length,
+          duration: first ? first.duration : null,
+          currentTime: first ? first.currentTime : null,
+        });
+        return true;
+      } else {
+        // nessun media in questo frame → niente risposta,
+        // lasciamo che risponda un altro frame che ne ha
+        return;
+      }
     }
 
     default:
-      // non è un messaggio nostro
       return;
   }
 });
 
 // ------------------------------
-// Mini widget in basso a destra
+// Mini widget (solo top frame)
 // ------------------------------
 
 function createPitchWidget() {
+  if (!isTopFrame) {
+    // niente widget negli iframe
+    return;
+  }
+
   if (document.getElementById('pitchlab-floating-widget')) return;
 
   const container = document.createElement('div');
@@ -176,25 +231,24 @@ function createPitchWidget() {
   widget.container = container;
   widget.valueSpan = valueSpan;
 
-  minusBtn.addEventListener('click', () => {
-    nudgeRate(-0.01); // passi di 1%
-  });
-
-  plusBtn.addEventListener('click', () => {
-    nudgeRate(+0.01);
-  });
+  // Nudge a passi di 0.01x
+  minusBtn.addEventListener('click', () => nudgeRate(-0.01));
+  plusBtn.addEventListener('click', () => nudgeRate(+0.01));
 
   // rate iniziale
   currentRate = 1.0;
   applyRate();
 }
 
-// Aspetta che il DOM sia pronto
+// ------------------------------
+// Init
+// ------------------------------
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
-    console.log('[PitchLab] DOMContentLoaded, init widget');
     createPitchWidget();
   });
 } else {
   createPitchWidget();
 }
+

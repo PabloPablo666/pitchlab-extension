@@ -10,7 +10,8 @@ const TARGET_URL_PATTERNS = [
 
 // una sola chiave globale, basta drammi
 const STORAGE_KEY = 'pitchlab-mk2-panel-state-v1';
-
+// link alla web app per export
+const EXPORT_APP_URL = 'https://pitchlab-mk2-export.vercel.app/';
 // -----------------------------
 // Helpers
 // -----------------------------
@@ -344,6 +345,11 @@ useEffect(() => {
   window.addEventListener('keydown', handleKey);
   return () => window.removeEventListener('keydown', handleKey);
 }, []);
+
+function openExportApp() {
+  window.open(EXPORT_APP_URL, '_blank', 'noopener,noreferrer');
+}
+
   // -----------------------------
   // UI
   // -----------------------------
@@ -361,16 +367,41 @@ useEffect(() => {
               Extension Panel
             </span>
           </div>
+<div className="flex flex-col items-end gap-1 text-xs text-neutral-400">
+  <div className="flex items-center gap-1">
+    <span>Targets:</span>
 
-          <div className="flex flex-col items-end gap-1 text-xs text-neutral-400">
-            <span>Targets: YouTube · Discogs · Bandcamp</span>
-            {lastTargetLabel && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-neutral-800 border border-neutral-700 text-[10px] text-neutral-200">
-                <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
-                Controlling: {lastTargetLabel}
-              </span>
-            )}
-          </div>
+    {['YouTube', 'Discogs', 'Bandcamp'].map((name, idx) => {
+      const isActive = lastTargetLabel === name;
+      return (
+        <React.Fragment key={name}>
+          <span
+            className={[
+              'inline-flex items-center px-2 py-0.5 rounded-full transition-all duration-150',
+              isActive
+                ? 'bg-green-500/10 text-green-200 border border-green-400/70 shadow-[0_0_10px_rgba(74,222,128,0.8)]'
+                : 'text-neutral-400'
+            ].join(' ')}
+          >
+            {name}
+          </span>
+          {idx < 2 && (
+            <span className="mx-0.5 text-neutral-600">·</span>
+          )}
+        </React.Fragment>
+      );
+    })}
+  </div>
+
+  <button
+    onClick={openExportApp}
+    className="mt-1 inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-green-400/70 bg-green-500/10 text-[10px] font-semibold text-green-200 shadow-[0_0_12px_rgba(74,222,128,0.7)] hover:bg-green-500/20 hover:border-green-300 transition-transform duration-150 active:scale-95"
+  >
+    <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
+    Open Export App
+  </button>
+</div>
+
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1.1fr] gap-6 p-6">
