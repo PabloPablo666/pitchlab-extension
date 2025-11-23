@@ -1,6 +1,70 @@
 import React, { useState, useRef, useEffect } from 'react';
 import "./App.css";
 
+// -----------------------------
+// Theme engine (hidden feature)
+// -----------------------------
+
+type ThemeName = 'green' | 'blue' | 'red';
+
+const THEME_CONFIG: Record<ThemeName, {
+  accentHex: string;
+  accentSoft: string;
+  dotBg: string;
+  dotGlow: string;
+  pillBg: string;
+  pillText: string;
+  pillBorder: string;
+  pillGlow: string;
+  pillHoverBg: string;
+  strongBg: string;
+  strongHoverBg: string;
+  strongText: string;
+}> = {
+  green: {
+    accentHex: 'rgb(34, 197, 94)',
+    accentSoft: 'rgba(34, 197, 94, 0.45)',
+    dotBg: 'bg-green-400',
+    dotGlow: 'shadow-[0_0_12px_2px_rgba(74,222,128,0.7)]',
+    pillBg: 'bg-green-500/10',
+    pillText: 'text-green-200',
+    pillBorder: 'border-green-400/70',
+    pillGlow: 'shadow-[0_0_10px_rgba(74,222,128,0.8)]',
+    pillHoverBg: 'hover:bg-green-500/20',
+    strongBg: 'bg-green-700/80',
+    strongHoverBg: 'hover:bg-green-600/80',
+    strongText: 'text-green-100',
+  },
+  blue: {
+    accentHex: 'rgb(59, 130, 246)',
+    accentSoft: 'rgba(59, 130, 246, 0.45)',
+    dotBg: 'bg-sky-400',
+    dotGlow: 'shadow-[0_0_12px_2px_rgba(56,189,248,0.7)]',
+    pillBg: 'bg-sky-500/10',
+    pillText: 'text-sky-200',
+    pillBorder: 'border-sky-400/70',
+    pillGlow: 'shadow-[0_0_10px_rgba(56,189,248,0.8)]',
+    pillHoverBg: 'hover:bg-sky-500/20',
+    strongBg: 'bg-sky-700/80',
+    strongHoverBg: 'hover:bg-sky-600/80',
+    strongText: 'text-sky-100',
+  },
+  red: {
+    accentHex: 'rgb(239, 68, 68)',
+    accentSoft: 'rgba(239, 68, 68, 0.45)',
+    dotBg: 'bg-rose-400',
+    dotGlow: 'shadow-[0_0_12px_2px_rgba(244,63,94,0.7)]',
+    pillBg: 'bg-rose-500/10',
+    pillText: 'text-rose-200',
+    pillBorder: 'border-rose-400/70',
+    pillGlow: 'shadow-[0_0_10px_rgba(244,63,94,0.8)]',
+    pillHoverBg: 'hover:bg-rose-500/20',
+    strongBg: 'bg-rose-700/80',
+    strongHoverBg: 'hover:bg-rose-600/80',
+    strongText: 'text-rose-100',
+  },
+};
+
 // Tab bersaglio: dove vive il player che vogliamo controllare
 const TARGET_URL_PATTERNS = [
   '*://*.youtube.com/*',
@@ -10,8 +74,10 @@ const TARGET_URL_PATTERNS = [
 
 // una sola chiave globale, basta drammi
 const STORAGE_KEY = 'pitchlab-mk2-panel-state-v1';
+
 // link alla web app per export
 const EXPORT_APP_URL = 'https://pitchlab-mk2-export.vercel.app/';
+
 // -----------------------------
 // Helpers
 // -----------------------------
@@ -111,6 +177,10 @@ export default function App() {
   const [tapBpm, setTapBpm] = useState<number | null>(null);
   const tapTimesRef = useRef<number[]>([]);
 
+  // Tema UI (hidden)
+  const [theme, setTheme] = useState<ThemeName>('green');
+  const themeCfg = THEME_CONFIG[theme];
+
   // Badge “chi sto controllando”
   const [lastTargetLabel, setLastTargetLabel] = useState<string | null>(null);
 
@@ -130,6 +200,9 @@ export default function App() {
   const zeroPos = toTrackPos(0);
   const currentPos = toTrackPos(pitch);
 
+  const accentHex = themeCfg.accentHex;
+  const accentSoft = themeCfg.accentSoft;
+
   let sliderTrack = `linear-gradient(to top,
     #e5e5e5 0%,
     #e5e5e5 100%
@@ -140,8 +213,8 @@ export default function App() {
     sliderTrack = `linear-gradient(to top,
       #e5e5e5 0%,
       #e5e5e5 ${currentPos}%,
-      #22c55e ${currentPos}%,
-      #22c55e ${zeroPos}%,
+      ${accentSoft} ${currentPos}%,
+      ${accentSoft} ${zeroPos}%,
       #e5e5e5 ${zeroPos}%,
       #e5e5e5 100%
     )`;
@@ -150,18 +223,29 @@ export default function App() {
     sliderTrack = `linear-gradient(to top,
       #e5e5e5 0%,
       #e5e5e5 ${zeroPos}%,
-      #22c55e ${zeroPos}%,
-      #22c55e ${currentPos}%,
+      ${accentSoft} ${zeroPos}%,
+      ${accentSoft} ${currentPos}%,
       #e5e5e5 ${currentPos}%,
       #e5e5e5 100%
     )`;
   }
+
   const displayPitch = pitch.toFixed(2);
   const currentBpm = baseBpm != null ? baseBpm * effectiveRate : null;
 
   // -----------------------------
   // Helpers UI
   // -----------------------------
+
+  function cycleTheme() {
+    setTheme(prev =>
+      prev === 'green'
+        ? 'blue'
+        : prev === 'blue'
+          ? 'red'
+          : 'green'
+    );
+  }
 
   function updateTargetLabelFromTab(tab: any) {
     try {
@@ -199,6 +283,7 @@ export default function App() {
         rpmOrig?: number;
         rpmPlay?: number;
         baseBpm?: number | null;
+        theme?: ThemeName;
       };
 
       let loadedPitch = pitch;
@@ -226,6 +311,10 @@ export default function App() {
         setBaseBpm(loadedBaseBpm);
       }
 
+      if (parsed.theme && (parsed.theme === 'green' || parsed.theme === 'blue' || parsed.theme === 'red')) {
+        setTheme(parsed.theme);
+      }
+
       const initialRate = computeRate(loadedPitch, loadedOrig, loadedPlay);
       sendRateToActiveMediaTab(initialRate, updateTargetLabelFromTab);
     } catch (err) {
@@ -241,12 +330,12 @@ export default function App() {
 
   useEffect(() => {
     try {
-      const toStore = { pitch, rpmOrig, rpmPlay, baseBpm };
+      const toStore = { pitch, rpmOrig, rpmPlay, baseBpm, theme };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
     } catch (err) {
       console.warn('[PitchLab panel] failed to save state to localStorage', err);
     }
-  }, [pitch, rpmOrig, rpmPlay, baseBpm]);
+  }, [pitch, rpmOrig, rpmPlay, baseBpm, theme]);
 
   // -----------------------------
   // Pitch / RPM logic
@@ -279,6 +368,7 @@ export default function App() {
     const newRate = computeRate(pitch, newOrig, newPlay);
     sendRateToActiveMediaTab(newRate, updateTargetLabelFromTab);
   }
+
   function handleFullReset() {
     // reset stato interno
     setPitch(0);
@@ -324,31 +414,32 @@ export default function App() {
   function resetBaseBpm() {
     setBaseBpm(null);
   }
-// -----------------------------
-// Key bindings (T = TAP tempo)
-// -----------------------------
-useEffect(() => {
-  function handleKey(e: KeyboardEvent) {
-    // evita casini caso utente scriva in qualche input (in futuro)
-    const target = e.target as HTMLElement;
-    if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
-      return;
+
+  // -----------------------------
+  // Key bindings (T = TAP tempo)
+  // -----------------------------
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      // evita casini caso utente scriva in qualche input (in futuro)
+      const target = e.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+        return;
+      }
+
+      // T / t → TAP
+      if (e.key === 't' || e.key === 'T') {
+        e.preventDefault();
+        handleTap();
+      }
     }
 
-    // T / t → TAP
-    if (e.key === 't' || e.key === 'T') {
-      e.preventDefault();
-      handleTap();
-    }
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, []);
+
+  function openExportApp() {
+    window.open(EXPORT_APP_URL, '_blank', 'noopener,noreferrer');
   }
-
-  window.addEventListener('keydown', handleKey);
-  return () => window.removeEventListener('keydown', handleKey);
-}, []);
-
-function openExportApp() {
-  window.open(EXPORT_APP_URL, '_blank', 'noopener,noreferrer');
-}
 
   // -----------------------------
   // UI
@@ -359,49 +450,62 @@ function openExportApp() {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-800">
           <div className="flex items-center gap-3">
-            <div className="h-3 w-3 rounded-full bg-green-400 shadow-[0_0_12px_2px_rgba(74,222,128,0.7)]" />
+            <button
+              type="button"
+              onClick={cycleTheme}
+              className={`h-3 w-3 rounded-full ${themeCfg.dotBg}`}
+              style={{ boxShadow: `0 0 10px 2px ${themeCfg.accentHex}` }}
+              title="Theme"
+            />
             <h1 className="text-xl font-semibold tracking-wide">
-             PitchLab MK2
+              PitchLab MK2
             </h1>
             <span className="text-xs px-2 py-0.5 rounded bg-neutral-800/70 border border-neutral-700">
               Extension Panel
             </span>
           </div>
-<div className="flex flex-col items-end gap-1 text-xs text-neutral-400">
-  <div className="flex items-center gap-1">
-    <span>Targets:</span>
 
-    {['YouTube', 'Discogs', 'Bandcamp'].map((name, idx) => {
-      const isActive = lastTargetLabel === name;
-      return (
-        <React.Fragment key={name}>
-          <span
-            className={[
-              'inline-flex items-center px-2 py-0.5 rounded-full transition-all duration-150',
-              isActive
-                ? 'bg-green-500/10 text-green-200 border border-green-400/70 shadow-[0_0_10px_rgba(74,222,128,0.8)]'
-                : 'text-neutral-400'
-            ].join(' ')}
-          >
-            {name}
-          </span>
-          {idx < 2 && (
-            <span className="mx-0.5 text-neutral-600">·</span>
-          )}
-        </React.Fragment>
-      );
-    })}
-  </div>
+          <div className="flex flex-col items-end gap-1 text-xs text-neutral-400">
+            <div className="flex items-center gap-1">
+              <span>Targets:</span>
 
-  <button
-    onClick={openExportApp}
-    className="mt-1 inline-flex items-center gap-1 px-3 py-1.5 rounded-full border border-green-400/70 bg-green-500/10 text-[10px] font-semibold text-green-200 shadow-[0_0_12px_rgba(74,222,128,0.7)] hover:bg-green-500/20 hover:border-green-300 transition-transform duration-150 active:scale-95"
-  >
-    <span className="h-1.5 w-1.5 rounded-full bg-green-400" />
-    Open Export App
-  </button>
-</div>
+              {['YouTube', 'Discogs', 'Bandcamp'].map((name, idx) => {
+                const isActive = lastTargetLabel === name;
+                return (
+                  <React.Fragment key={name}>
+                    <span
+                      className={[
+                        'inline-flex items-center px-2 py-0.5 rounded-full transition-all duration-150',
+                        isActive
+                          ? `${themeCfg.pillBg} ${themeCfg.pillText} border ${themeCfg.pillBorder} ${themeCfg.pillGlow}`
+                          : 'text-neutral-400'
+                      ].join(' ')}
+                    >
+                      {name}
+                    </span>
+                    {idx < 2 && (
+                      <span className="mx-0.5 text-neutral-600">·</span>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
 
+            <button
+              onClick={openExportApp}
+              className={[
+                'mt-1 inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-semibold active:scale-95 transition-transform duration-150',
+                themeCfg.pillBg,
+                themeCfg.pillText,
+                `border ${themeCfg.pillBorder}`,
+                themeCfg.pillHoverBg,
+                themeCfg.pillGlow,
+              ].join(' ')}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${themeCfg.dotBg}`} />
+              Open Export App
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_1.1fr] gap-6 p-6">
@@ -422,7 +526,7 @@ function openExportApp() {
                         className={[
                           'px-3 py-1.5 text-xs border-r border-neutral-700 last:border-r-0',
                           rpmOrig === val
-                            ? 'bg-green-500/10 text-green-300'
+                            ? `${themeCfg.pillBg} ${themeCfg.pillText}`
                             : 'bg-neutral-900 hover:bg-neutral-800/80',
                         ].join(' ')}
                         onClick={() => applyRpmChange(val, rpmPlay)}
@@ -442,7 +546,7 @@ function openExportApp() {
                         className={[
                           'px-3 py-1.5 text-xs border-r border-neutral-700 last:border-r-0',
                           rpmPlay === val
-                            ? 'bg-green-500/10 text-green-300'
+                            ? `${themeCfg.pillBg} ${themeCfg.pillText}`
                             : 'bg-neutral-900 hover:bg-neutral-800/80',
                         ].join(' ')}
                         onClick={() => applyRpmChange(rpmOrig, val)}
@@ -497,33 +601,34 @@ function openExportApp() {
 
                 {/* Slider verticale */}
                 <div className="flex flex-col items-center gap-3">
-                 <input
-                  type="range"
-                  min={-8}
-                  max={8}
-                  step={0.01}
-                  value={pitch}
-                  onChange={handleSliderChange}
-                  className="h-72 w-2 bg-transparent"
-                  style={{
-                   WebkitAppearance: 'none',
-                   writingMode: 'vertical-lr',
-                   backgroundImage: sliderTrack,
-                   backgroundRepeat: 'no-repeat',
-                   backgroundSize: '100% 100%',
-                   borderRadius: '999px',
-                 }}
-                />
-
-              <div className="flex items-center gap-2 text-xs text-neutral-400">
-               <span>Quartz lock</span>
-               <span
-                className={`h-2 w-2 rounded-full ${
-                  detent ? 'bg-green-400' : 'bg-neutral-700'
-                 }`}
-                />
-              </div>
-             </div>
+                  <input
+                    type="range"
+                    min={-8}
+                    max={8}
+                    step={0.01}
+                    value={pitch}
+                    onChange={handleSliderChange}
+                    className="h-72 w-2 bg-transparent"
+                    style={{
+                      WebkitAppearance: 'none',
+                      writingMode: 'vertical-lr',
+                      backgroundImage: sliderTrack,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundSize: '100% 100%',
+                      borderRadius: '999px',
+                      // qui passiamo il colore del tema al CSS
+                      '--pl-accent': accentHex,
+                      } as React.CSSProperties}
+                    />
+                  <div className="flex items-center gap-2 text-xs text-neutral-400">
+                    <span>Quartz lock</span>
+                    <span
+                      className={`h-2 w-2 rounded-full ${
+                        detent ? 'bg-green-400' : 'bg-neutral-700'
+                      }`}
+                    />
+                  </div>
+                </div>
 
                 {/* Display numerico */}
                 <div className="ml-auto grid gap-2 text-right">
@@ -539,14 +644,15 @@ function openExportApp() {
 
             {/* Full deck reset */}
             <div className="mt-4 flex justify-center">
-             <button
-              onClick={handleFullReset}
-              className="px-4 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-sm font-semibold hover:bg-neutral-700 active:scale-95"
-             >
-             Full Deck Reset
-            </button>
-           </div>
+              <button
+                onClick={handleFullReset}
+                className="px-4 py-2 rounded-lg bg-neutral-800 border border-neutral-700 text-sm font-semibold hover:bg-neutral-700 active:scale-95"
+              >
+                Full Deck Reset
+              </button>
+            </div>
           </div>
+
           {/* Colonna destra: Info + BPM + Nudge + Help */}
           <div className="grid grid-rows-[auto_auto_auto_1fr] gap-4">
             {/* Rate & info */}
@@ -608,7 +714,12 @@ function openExportApp() {
 
               <div className="grid grid-cols-2 gap-3">
                 <button
-                  className="px-3 py-2 rounded-lg bg-green-700/80 hover:bg-green-600/80 text-xs font-semibold active:scale-95 disabled:opacity-40 disabled:hover:bg-green-700/80"
+                  className={[
+                    'px-3 py-2 rounded-lg text-xs font-semibold active:scale-95 disabled:opacity-40',
+                    themeCfg.strongBg,
+                    themeCfg.strongHoverBg,
+                    themeCfg.strongText,
+                  ].join(' ')}
                   onClick={useTappedBpm}
                   disabled={tapBpm == null}
                 >
@@ -687,12 +798,12 @@ function openExportApp() {
         </div>
 
         <div className="px-6 py-4 border-t border-neutral-800 text-[11px] text-neutral-500 flex flex-wrap items-center gap-3 tracking-widest uppercase select-none">
-       <span>© {new Date().getFullYear()} PitchLab MK2</span>
-       <span className="opacity-40">•</span>
-       <span>Browser Deck Control</span>
-       <span className="opacity-40">•</span>
-       <span className="text-neutral-400">Paolo Olivieri</span>
-       </div>
+          <span>© {new Date().getFullYear()} PitchLab MK2</span>
+          <span className="opacity-40">•</span>
+          <span>Browser Deck Control</span>
+          <span className="opacity-40">•</span>
+          <span className="text-neutral-400">Paolo Olivieri</span>
+        </div>
       </div>
     </div>
   );

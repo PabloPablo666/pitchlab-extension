@@ -22,22 +22,22 @@ input[type="range"]::-moz-range-thumb {
   border: 2px solid #333;
   cursor: pointer;
 }
-/* Glow verde sempre attivo */
+/* Glow base (segue il tema) */
 input[type="range"]::-webkit-slider-thumb {
-  box-shadow: 0 0 4px 1px rgba(34, 197, 94, 0.6); /* glow sempre */
+  box-shadow: 0 0 4px 1px var(--pl-accent);
 }
 
 input[type="range"]::-moz-range-thumb {
-  box-shadow: 0 0 4px 1px rgba(34, 197, 94, 0.6);
+  box-shadow: 0 0 4px 1px var(--pl-accent);
 }
 
-/* Glow maggiore quando hover + active */
+/* Glow maggiore quando hover + active (tema) */
 input[type="range"]::-webkit-slider-thumb:hover,
 input[type="range"]::-webkit-slider-thumb:active {
-  box-shadow: 0 0 8px 3px rgba(34, 197, 94, 0.9);
+  box-shadow: 0 0 8px 3px var(--pl-accent);
 }
 
 input[type="range"]::-moz-range-thumb:hover,
 input[type="range"]::-moz-range-thumb:active {
-  box-shadow: 0 0 8px 3px rgba(34, 197, 94, 0.9);
+  box-shadow: 0 0 8px 3px var(--pl-accent);
 }
