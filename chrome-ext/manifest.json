@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "◆ PitchLab MK2 — Virtual Deck Engine",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "PitchLab MK2 · browser vinyl pitch & RPM controller for Discogs, Bandcamp and YouTube.",
 
   "action": {
@@ -41,8 +41,6 @@
 
   "permissions": [
     "activeTab",
-    "scripting",
-    "storage",
     "tabs"
   ],
 
@@ -52,3 +50,4 @@
     "*://*.bandcamp.com/*"
   ]
 }
+
